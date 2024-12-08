@@ -526,21 +526,19 @@ impl Parser<'_> {
     /// let mut p = Parser::new("(1 2 3);f, foo".as_bytes());
     ///
     /// loop {
-    ///     match p.parse_list() {
-    ///          Ok(None) => break,
-    ///          Ok(Some(Value::InnerList)) => {
+    ///     match p.parse_list().unwrap() {
+    ///          None => break,
+    ///          Some(Value::InnerList) => {
     ///              println!("InnerList");
     ///
     ///              loop {
-    ///                  match p.parse_inner_list() {
-    ///                      Ok(None) => break,
-    ///                      Ok(Some(v)) => println!("{v}"),
-    ///                      Err(err) => panic!("{err}"),
+    ///                  match p.parse_inner_list().unwrap() {
+    ///                      None => break,
+    ///                      Some(v) => println!("{v}"),
     ///                  }
     ///              }
     ///          }
-    ///          Ok(Some(v)) => println!("{v}"),
-    ///          Err(err) => panic!("{err}"),
+    ///          Some(v) => println!("{v}"),
     ///     }
     /// }
     /// ```
@@ -554,35 +552,31 @@ impl Parser<'_> {
     /// let mut p = Parser::new("(1 2 3);f, foo".as_bytes());
     ///
     /// loop {
-    ///     match p.parse_list() {
-    ///          Ok(None) => break,
-    ///          Ok(Some(Value::InnerList)) => {
+    ///     match p.parse_list().unwrap() {
+    ///          None => break,
+    ///          Some(Value::InnerList) => {
     ///              println!("InnerList");
     ///
     ///              loop {
-    ///                  match p.parse_inner_list() {
-    ///                      Ok(None) => break,
-    ///                      Ok(Some(v)) => {
+    ///                  match p.parse_inner_list().unwrap() {
+    ///                      None => break,
+    ///                      Some(v) => {
     ///                          println!("{v}");
     ///
     ///                          loop {
-    ///                              match p.parse_param() {
-    ///                                  Ok(None) => break,
-    ///                                  Ok(Some((k, v))) => println!("{k}: {v}"),
-    ///                                  Err(err) => panic!("{err}"),
+    ///                              match p.parse_param().unwrap() {
+    ///                                  None => break,
+    ///                                  Some((k, v)) => println!("{k}: {v}"),
     ///                              }
     ///                          }
     ///                      }
-    ///                      Err(err) => panic!("{err}"),
     ///                  }
     ///              }
     ///          }
-    ///          Ok(Some(v)) => println!("{v}"),
-    ///          Err(err) => panic!("{err}"),
+    ///          Some(v) => println!("{v}"),
     ///     }
     /// }
     /// ```
-    ///
     pub fn parse_inner_list(&mut self) -> Result<Option<Value>, Error> {
         match self.state.state() {
             StateSt {
