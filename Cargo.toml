@@ -2,5 +2,7 @@
 name = "sfparse"
 version = "0.1.0"
 edition = "2021"
+description = "RFC 9651 Structured Field Values parser"
+license = "MIT"
 
 [dependencies]
