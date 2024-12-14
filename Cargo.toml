@@ -1,6 +1,6 @@
 [package]
 name = "sfparse"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "RFC 9651 Structured Field Values parser"
 license = "MIT"
