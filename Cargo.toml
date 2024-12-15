@@ -4,5 +4,8 @@ version = "0.1.1"
 edition = "2021"
 description = "RFC 9651 Structured Field Values parser"
 license = "MIT"
+keywords = ["RFC9651", "RFC8941", "HTTP", "structured-fields", "structured-headers"]
+documentation = "https://docs.rs/sfparse"
+repository = "https://github.com/ngtcp2/sfparse-rs"
 
 [dependencies]
