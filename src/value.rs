@@ -1,6 +1,6 @@
-use std::fmt;
+use core::fmt;
 
-pub type Range = std::ops::Range<usize>;
+pub type Range = core::ops::Range<usize>;
 pub type Key<'a> = &'a str;
 
 /// Represents Structured Field Value data types.

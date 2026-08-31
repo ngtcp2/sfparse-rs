@@ -27,6 +27,8 @@
 //!
 //! println!("urgency={urgency} incremental={incremental}");
 //! ```
+#![no_std]
+
 mod parser;
 mod utf8;
 mod value;
