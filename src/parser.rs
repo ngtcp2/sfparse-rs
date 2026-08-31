@@ -91,7 +91,7 @@ impl std::error::Error for Error {}
 /// minimal stuff to parse the input data.
 impl Parser<'_> {
     /// Creates new Parser with the given data.
-    pub fn new(data: &[u8]) -> Parser {
+    pub fn new(data: &[u8]) -> Parser<'_> {
         Parser {
             data: data,
             pos: 0,
@@ -237,7 +237,7 @@ impl Parser<'_> {
     ///     }
     /// }
     /// ```
-    pub fn parse_param(&mut self) -> Result<Option<(Key, Value)>, Error> {
+    pub fn parse_param(&mut self) -> Result<Option<(Key<'_>, Value)>, Error> {
         match self.state.op() {
             Op::Before => {
                 self.skip_inner_list()?;
@@ -357,7 +357,7 @@ impl Parser<'_> {
     ///
     /// This method does no effect to verify the uniqueness of the
     /// key.
-    pub fn parse_dict(&mut self) -> Result<Option<(Key, Value)>, Error> {
+    pub fn parse_dict(&mut self) -> Result<Option<(Key<'_>, Value)>, Error> {
         match self.state {
             State::Dict(StateSt {
                 inner_list: true,
@@ -1783,7 +1783,7 @@ mod tests {
     }
 
     impl TValue<'_> {
-        fn from_value(v: Value, s: &str) -> TValue {
+        fn from_value(v: Value, s: &str) -> TValue<'_> {
             match v {
                 Value::String { range, escape } => TValue::String {
                     str: &s[range],
