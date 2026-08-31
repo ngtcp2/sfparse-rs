@@ -93,7 +93,7 @@ impl Parser<'_> {
     /// Creates new Parser with the given data.
     pub fn new(data: &[u8]) -> Parser<'_> {
         Parser {
-            data: data,
+            data,
             pos: 0,
             state: State::Initial,
         }
@@ -688,9 +688,9 @@ impl Parser<'_> {
         let base = self.pos;
         self.pos += 1;
 
-        match self.data[self.pos..].iter().position(|&x| match x {
-            b'_' | b'-' | b'.' | b'*' | b'0'..=b'9' | b'a'..=b'z' => false,
-            _ => true,
+        match self.data[self.pos..].iter().position(|&x| {
+            !matches!( x,
+            b'_' | b'-' | b'.' | b'*' | b'0'..=b'9' | b'a'..=b'z')
         }) {
             Some(pos) => self.pos += pos,
             None => self.pos = self.data.len(),
@@ -776,11 +776,8 @@ impl Parser<'_> {
                     self.pos += 1;
 
                     return Ok(Value::String {
-                        range: Range {
-                            start: base,
-                            end: end,
-                        },
-                        escape: escape,
+                        range: Range { start: base, end },
+                        escape,
                     });
                 }
                 _ => return Err(Error::ParseError { index: self.pos }),
@@ -915,10 +912,7 @@ impl Parser<'_> {
                     let end = self.pos;
                     self.pos += 1;
 
-                    return Ok(Value::ByteSeq(Range {
-                        start: base,
-                        end: end,
-                    }));
+                    return Ok(Value::ByteSeq(Range { start: base, end }));
                 }
                 b':' => {
                     if (self.pos - base) & 0x3 == 1 {
@@ -928,10 +922,7 @@ impl Parser<'_> {
                     let end = self.pos;
                     self.pos += 1;
 
-                    return Ok(Value::ByteSeq(Range {
-                        start: base,
-                        end: end,
-                    }));
+                    return Ok(Value::ByteSeq(Range { start: base, end }));
                 }
                 _ => return Err(Error::ParseError { index: self.pos }),
             };
@@ -965,7 +956,8 @@ impl Parser<'_> {
 
         self.pos += 1;
 
-        match self.data[self.pos..].iter().position(|&x| match x {
+        match self.data[self.pos..].iter().position(|&x| {
+            !matches!( x,
             b'!'
             | b'#'
             | b'$'
@@ -985,8 +977,7 @@ impl Parser<'_> {
             | b'`'
             | b'a'..=b'z'
             | b'|'
-            | b'~' => false,
-            _ => true,
+            | b'~')
         }) {
             Some(pos) => self.pos += pos,
             None => self.pos = self.data.len(),
@@ -1041,10 +1032,7 @@ impl Parser<'_> {
                     let end = self.pos;
                     self.pos += 1;
 
-                    return Ok(Value::DispString(Range {
-                        start: base,
-                        end: end,
-                    }));
+                    return Ok(Value::DispString(Range { start: base, end }));
                 }
                 _ => {
                     if utf8_state != utf8::ACCEPT {
@@ -1086,10 +1074,8 @@ struct PCTDecodeError {
 fn pctdecode(data: &[u8]) -> Result<u8, PCTDecodeError> {
     let mut c = 0;
 
-    for i in 0..2 {
+    for (i, x) in data.iter().enumerate().take(2) {
         c <<= 4;
-
-        let x = data[i];
         c |= match x {
             b'0'..=b'9' => Ok(x - b'0'),
             b'a'..=b'f' => Ok(x - b'a' + 10),
