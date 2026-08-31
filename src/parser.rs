@@ -679,6 +679,21 @@ impl Parser<'_> {
         Ok(())
     }
 
+    const KEY_CHARS: [bool; 256] = {
+        let mut table = [false; 256];
+        let mut i = 0usize;
+
+        while i < 256 {
+            table[i] = matches!(i as u8,
+				b'_' | b'-' | b'.' | b'*' | b'0'..=b'9'
+				| b'a'..=b'z');
+
+            i += 1;
+        }
+
+        table
+    };
+
     fn parse_key(&mut self) -> Result<IKey, Error> {
         match self.data[self.pos] {
             b'*' | b'a'..=b'z' => (),
@@ -688,10 +703,10 @@ impl Parser<'_> {
         let base = self.pos;
         self.pos += 1;
 
-        match self.data[self.pos..].iter().position(|&x| {
-            !matches!( x,
-            b'_' | b'-' | b'.' | b'*' | b'0'..=b'9' | b'a'..=b'z')
-        }) {
+        match self.data[self.pos..]
+            .iter()
+            .position(|&x| !Self::KEY_CHARS[x as usize])
+        {
             Some(pos) => self.pos += pos,
             None => self.pos = self.data.len(),
         }
@@ -751,14 +766,40 @@ impl Parser<'_> {
         }
     }
 
+    const STRING_CHARS: [bool; 256] = {
+        let mut table = [false; 256];
+        let mut i = 0usize;
+
+        while i < 256 {
+            table[i] = matches!(i as u8,
+				0x20..=0x21 | 0x23..=0x5b | 0x5d..=0x7e);
+
+            i += 1;
+        }
+
+        table
+    };
+
     fn parse_string(&mut self) -> Result<Value, Error> {
         self.pos += 1;
         let base = self.pos;
         let mut escape = false;
 
-        while !self.eof() {
+        loop {
+            let rest = &self.data[self.pos..];
+
+            let offset = rest
+                .iter()
+                .position(|&x| !Self::STRING_CHARS[x as usize])
+                .unwrap_or(rest.len());
+
+            self.pos += offset;
+
+            if self.eof() {
+                return Err(Error::ParseError { index: self.pos });
+            }
+
             match self.data[self.pos] {
-                0x20..=0x21 | 0x23..=0x5b | 0x5d..=0x7e => (),
                 b'\\' => {
                     self.pos += 1;
 
@@ -767,7 +808,10 @@ impl Parser<'_> {
                     }
 
                     match self.data[self.pos] {
-                        b'"' | b'\\' => escape = true,
+                        b'"' | b'\\' => {
+                            escape = true;
+                            self.pos += 1;
+                        }
                         _ => return Err(Error::ParseError { index: self.pos }),
                     };
                 }
@@ -782,11 +826,7 @@ impl Parser<'_> {
                 }
                 _ => return Err(Error::ParseError { index: self.pos }),
             }
-
-            self.pos += 1;
         }
-
-        Err(Error::ParseError { index: self.pos })
     }
 
     fn parse_number(&mut self) -> Result<Value, Error> {
@@ -805,21 +845,24 @@ impl Parser<'_> {
         }
 
         for c in &self.data[self.pos..] {
-            match c {
-                b'0'..=b'9' => {
-                    len += 1;
-                    if len > 15 {
-                        return Err(Error::ParseError { index: self.pos });
-                    }
-
-                    value *= 10;
-                    value += (c - b'0') as i64;
-                }
-                _ => break,
+            let digit = c.wrapping_sub(b'0');
+            if digit > 9 {
+                break;
             }
 
-            self.pos += 1;
+            len += 1;
+
+            if len > 15 {
+                return Err(Error::ParseError {
+                    index: self.pos + len - 1,
+                });
+            }
+
+            value *= 10;
+            value += (c - b'0') as i64;
         }
+
+        self.pos += len;
 
         if len == 0 {
             return Err(Error::ParseError { index: self.pos });
@@ -839,18 +882,18 @@ impl Parser<'_> {
         self.pos += 1;
 
         for c in &self.data[self.pos..] {
-            match c {
-                b'0'..=b'9' => {
-                    len += 1;
-                    if len > 15 || len - fpos > 3 {
-                        return Err(Error::ParseError { index: self.pos });
-                    }
-
-                    value *= 10;
-                    value += (c - b'0') as i64;
-                }
-                _ => break,
+            let digit = c.wrapping_sub(b'0');
+            if digit > 9 {
+                break;
             }
+
+            len += 1;
+            if len > 15 || len - fpos > 3 {
+                return Err(Error::ParseError { index: self.pos });
+            }
+
+            value *= 10;
+            value += (c - b'0') as i64;
 
             self.pos += 1;
         }
@@ -861,7 +904,7 @@ impl Parser<'_> {
 
         Ok(Value::Decimal {
             numer: value * sign,
-            denom: 10i64.pow(len - fpos),
+            denom: 10i64.pow((len - fpos) as u32),
         })
     }
 
@@ -880,57 +923,78 @@ impl Parser<'_> {
         Err(Error::ParseError { index: self.pos })
     }
 
+    const BYTESEQ_CHARS: [bool; 256] = {
+        let mut table = [false; 256];
+        let mut i = 0usize;
+
+        while i < 256 {
+            table[i] = matches!(i as u8,
+				b'+' | b'/' | b'0'..=b'9' | b'A'..=b'Z'
+				| b'a'..=b'z');
+
+            i += 1;
+        }
+
+        table
+    };
+
     fn parse_byteseq(&mut self) -> Result<Value, Error> {
         self.pos += 1;
         let base = self.pos;
 
-        for b in &self.data[self.pos..] {
-            match b {
-                b'+' | b'/' | b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' => (),
-                b'=' => {
-                    match (self.pos - base) & 0x3 {
-                        0 | 1 => return Err(Error::ParseError { index: self.pos }),
-                        2 => {
-                            self.pos += 1;
+        let rest = &self.data[self.pos..];
 
-                            if self.eof() {
-                                return Err(Error::ParseError { index: self.pos });
-                            }
+        let offset = rest
+            .iter()
+            .position(|&x| !Self::BYTESEQ_CHARS[x as usize])
+            .unwrap_or(rest.len());
 
-                            if self.data[self.pos] == b'=' {
-                                self.pos += 1;
-                            }
-                        }
-                        3 => self.pos += 1,
-                        _ => panic!("unreachable"),
-                    }
+        self.pos += offset;
 
-                    if self.eof() || self.data[self.pos] != b':' {
-                        return Err(Error::ParseError { index: self.pos });
-                    }
-
-                    let end = self.pos;
-                    self.pos += 1;
-
-                    return Ok(Value::ByteSeq(Range { start: base, end }));
-                }
-                b':' => {
-                    if (self.pos - base) & 0x3 == 1 {
-                        return Err(Error::ParseError { index: self.pos });
-                    }
-
-                    let end = self.pos;
-                    self.pos += 1;
-
-                    return Ok(Value::ByteSeq(Range { start: base, end }));
-                }
-                _ => return Err(Error::ParseError { index: self.pos }),
-            };
-
-            self.pos += 1;
+        if self.eof() {
+            return Err(Error::ParseError { index: self.pos });
         }
 
-        Err(Error::ParseError { index: self.pos })
+        match self.data[self.pos] {
+            b'=' => {
+                match (self.pos - base) & 0x3 {
+                    0 | 1 => return Err(Error::ParseError { index: self.pos }),
+                    2 => {
+                        self.pos += 1;
+
+                        if self.eof() {
+                            return Err(Error::ParseError { index: self.pos });
+                        }
+
+                        if self.data[self.pos] == b'=' {
+                            self.pos += 1;
+                        }
+                    }
+                    3 => self.pos += 1,
+                    _ => panic!("unreachable"),
+                }
+
+                if self.eof() || self.data[self.pos] != b':' {
+                    return Err(Error::ParseError { index: self.pos });
+                }
+
+                let end = self.pos;
+                self.pos += 1;
+
+                Ok(Value::ByteSeq(Range { start: base, end }))
+            }
+            b':' => {
+                if (self.pos - base) & 0x3 == 1 {
+                    return Err(Error::ParseError { index: self.pos });
+                }
+
+                let end = self.pos;
+                self.pos += 1;
+
+                Ok(Value::ByteSeq(Range { start: base, end }))
+            }
+            _ => Err(Error::ParseError { index: self.pos }),
+        }
     }
 
     fn parse_boolean(&mut self) -> Result<Value, Error> {
@@ -951,34 +1015,32 @@ impl Parser<'_> {
         Ok(Value::Bool(b))
     }
 
+    const TOKEN_CHARS: [bool; 256] = {
+        let mut table = [false; 256];
+        let mut i = 0usize;
+
+        while i < 256 {
+            table[i] = matches!(i as u8,
+				b'!' | b'#' | b'$' | b'%' | b'&' | b'\''
+				| b'*' | b'+' | b'-' | b'.' | b'/'
+				| b'0'..=b'9' | b':' | b'A'..=b'Z' | b'^'
+				| b'_' | b'`' | b'a'..=b'z' | b'|' | b'~');
+
+            i += 1;
+        }
+
+        table
+    };
+
     fn parse_token(&mut self) -> Result<Value, Error> {
         let base = self.pos;
 
         self.pos += 1;
 
-        match self.data[self.pos..].iter().position(|&x| {
-            !matches!( x,
-            b'!'
-            | b'#'
-            | b'$'
-            | b'%'
-            | b'&'
-            | b'\''
-            | b'*'
-            | b'+'
-            | b'-'
-            | b'.'
-            | b'/'
-            | b'0'..=b'9'
-            | b':'
-            | b'A'..=b'Z'
-            | b'^'
-            | b'_'
-            | b'`'
-            | b'a'..=b'z'
-            | b'|'
-            | b'~')
-        }) {
+        match self.data[self.pos..]
+            .iter()
+            .position(|&x| !Self::TOKEN_CHARS[x as usize])
+        {
             Some(pos) => self.pos += pos,
             None => self.pos = self.data.len(),
         }
@@ -988,6 +1050,19 @@ impl Parser<'_> {
             end: self.pos,
         }))
     }
+
+    const DISPSTRING_CHARS: [bool; 256] = {
+        let mut table = [false; 256];
+        let mut i = 0usize;
+
+        while i < 256 {
+            table[i] = matches!(i as u8, 0x20 | 0x21 | 0x23 | 0x24 | 0x26..=0x7e);
+
+            i += 1;
+        }
+
+        table
+    };
 
     fn parse_dispstring(&mut self) -> Result<Value, Error> {
         self.pos += 1;
@@ -1000,10 +1075,22 @@ impl Parser<'_> {
         let base = self.pos;
         let mut utf8_state: u32 = utf8::ACCEPT;
 
-        while !self.eof() {
+        loop {
+            let rest = &self.data[self.pos..];
+
+            let offset = rest
+                .iter()
+                .position(|&x| !Self::DISPSTRING_CHARS[x as usize])
+                .unwrap_or(rest.len());
+
+            self.pos += offset;
+
+            if self.eof() {
+                return Err(Error::ParseError { index: self.pos });
+            }
+
             match self.data[self.pos] {
-                0x00..=0x1f | 0x7f..=0xff => return Err(Error::ParseError { index: self.pos }),
-                b'%' => {
+                b'%' => loop {
                     self.pos += 1;
 
                     if self.pos + 2 > self.data.len() {
@@ -1023,28 +1110,28 @@ impl Parser<'_> {
                     }
 
                     self.pos += 2;
-                }
-                b'"' => {
-                    if utf8_state != utf8::ACCEPT {
-                        return Err(Error::ParseError { index: self.pos });
+
+                    if utf8_state == utf8::ACCEPT {
+                        if !self.eof() && self.data[self.pos] == b'%' {
+                            continue;
+                        }
+
+                        break;
                     }
 
+                    if self.eof() || self.data[self.pos] != b'%' {
+                        return Err(Error::ParseError { index: self.pos });
+                    }
+                },
+                b'"' => {
                     let end = self.pos;
                     self.pos += 1;
 
                     return Ok(Value::DispString(Range { start: base, end }));
                 }
-                _ => {
-                    if utf8_state != utf8::ACCEPT {
-                        return Err(Error::ParseError { index: self.pos });
-                    }
-
-                    self.pos += 1;
-                }
+                _ => return Err(Error::ParseError { index: self.pos }),
             }
         }
-
-        Err(Error::ParseError { index: self.pos })
     }
 
     fn parse_inner_list_after(&mut self) -> Result<(), Error> {
@@ -1283,6 +1370,11 @@ mod tests {
                 expect: Ok(Some(Value::DispString(2..15))),
             },
             TestCase {
+                name: "unterminated UTF-8 sequence",
+                input: r#"%"f%c3%bc%c3""#,
+                expect: Err(Error::ParseError { index: 12 }),
+            },
+            TestCase {
                 name: "tab in display string",
                 input: "%\"\t\"",
                 expect: Err(Error::ParseError { index: 2 }),
@@ -1320,6 +1412,11 @@ mod tests {
             TestCase {
                 name: "bad display string escaping",
                 input: r#"%"foo %a"#,
+                expect: Err(Error::ParseError { index: 7 }),
+            },
+            TestCase {
+                name: "end with %",
+                input: r#"%"foo %"#,
                 expect: Err(Error::ParseError { index: 7 }),
             },
             TestCase {
