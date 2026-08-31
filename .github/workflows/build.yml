@@ -16,3 +16,9 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Enforce no_std
+      run: |
+        # Add a target without std
+        rustup target add thumbv7em-none-eabi
+        # Verify that lib.rs compiles strictly without std
+        cargo check --target thumbv7em-none-eabi --no-default-features

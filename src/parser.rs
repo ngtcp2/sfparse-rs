@@ -1,9 +1,9 @@
-use std::fmt;
+use core::fmt;
+use core::str;
 
 use crate::utf8;
-pub use crate::value::{Key, Value};
+pub use crate::value::{Key, Range, Value};
 
-pub type Range = std::ops::Range<usize>;
 pub type IKey = Range;
 
 pub struct Parser<'a> {
@@ -82,7 +82,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 /// Parser is [RFC
 /// 9651](https://datatracker.ietf.org/doc/html/rfc9651) Structured
@@ -265,7 +265,7 @@ impl Parser<'_> {
 
         if self.eof() || self.data[self.pos] != b'=' {
             return Ok(Some((
-                unsafe { std::str::from_utf8_unchecked(&self.data[ik]) },
+                unsafe { str::from_utf8_unchecked(&self.data[ik]) },
                 Value::Bool(true),
             )));
         }
@@ -279,7 +279,7 @@ impl Parser<'_> {
         let v = self.parse_bare_item()?;
 
         Ok(Some((
-            unsafe { std::str::from_utf8_unchecked(&self.data[ik]) },
+            unsafe { str::from_utf8_unchecked(&self.data[ik]) },
             v,
         )))
     }
@@ -390,7 +390,7 @@ impl Parser<'_> {
         let v = self.parse_dict_value()?;
 
         Ok(Some((
-            unsafe { std::str::from_utf8_unchecked(&self.data[ik]) },
+            unsafe { str::from_utf8_unchecked(&self.data[ik]) },
             v,
         )))
     }
@@ -1089,6 +1089,11 @@ fn pctdecode(data: &[u8]) -> Result<u8, PCTDecodeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    extern crate std;
+    use std::format;
+    use std::string::String;
+    use std::vec;
+    use std::vec::Vec;
 
     struct TestCase<'a> {
         name: &'a str,
