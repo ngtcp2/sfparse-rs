@@ -31,5 +31,5 @@ mod parser;
 mod utf8;
 mod value;
 
-pub use crate::parser::{Parser, Error};
+pub use crate::parser::{Error, Parser};
 pub use crate::value::Value;

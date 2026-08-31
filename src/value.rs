@@ -11,7 +11,10 @@ pub enum Value {
     /// String represents Strings.  range is the starting and ending
     /// positions in the input byte array.  escape is true if String
     /// contains `\` escaped character.
-    String { range: Range, escape: bool },
+    String {
+        range: Range,
+        escape: bool,
+    },
     /// Token represents Tokens.  It contains the starting and ending
     /// positions in the input byte array.
     Token(Range),
@@ -20,7 +23,10 @@ pub enum Value {
     /// Decimal represents Decimals.  numer is the numerator and denom
     /// is the denominator of the number when it is represented in a
     /// rational number.
-    Decimal { numer: i64, denom: i64 },
+    Decimal {
+        numer: i64,
+        denom: i64,
+    },
     Date(i64),
     /// ByteSeq represents Byte Sequences.  It contains the starting
     /// and ending positions in the input byte array.
