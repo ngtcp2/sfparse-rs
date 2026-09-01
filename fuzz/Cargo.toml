@@ -1,0 +1,22 @@
+[package]
+name = "sfparse-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = "1.4.2"
+
+[dependencies.sfparse]
+path = ".."
+
+[[bin]]
+name = "fuzz_parser"
+path = "fuzz_targets/fuzz_parser.rs"
+test = false
+doc = false
+bench = false

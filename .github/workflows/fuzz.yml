@@ -1,0 +1,48 @@
+name: Continuous Fuzzing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+  - cron: '0 0/6 * * *'
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    name: Run Fuzz Targets
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Nightly Rust
+      run: |
+        rustup toolchain install nightly --profile minimal
+        rustup default nightly
+
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz
+
+    # Dynamic time allocation: 1 hour (3600s) on scheduled/manual
+    # runs, 60s on PRs
+    - name: Run Fuzzer (fuzz_parser)
+      run: |
+        if [ "${{ github.event_name }}" = "schedule" ] || \
+           [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          TIME=3600
+        else
+          TIME=60
+        fi
+
+        cargo fuzz run fuzz_parser -- -max_total_time=$TIME
+
+    # Upload crash artifacts if a panic or OOB access is detected
+    - name: Upload Crash Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzz-crashes
+        path: fuzz/artifacts/
