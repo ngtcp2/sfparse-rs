@@ -42,7 +42,7 @@ jobs:
     # Upload crash artifacts if a panic or OOB access is detected
     - name: Upload Crash Artifacts
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: fuzz-crashes
         path: fuzz/artifacts/
