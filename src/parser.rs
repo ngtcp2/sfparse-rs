@@ -264,10 +264,7 @@ impl Parser<'_> {
         let ik = self.parse_key()?;
 
         if self.eof() || self.data[self.pos] != b'=' {
-            return Ok(Some((
-                unsafe { str::from_utf8_unchecked(&self.data[ik]) },
-                Value::Bool(true),
-            )));
+            return Ok(Some((str_from_utf8(&self.data[ik]), Value::Bool(true))));
         }
 
         self.pos += 1;
@@ -278,10 +275,7 @@ impl Parser<'_> {
 
         let v = self.parse_bare_item()?;
 
-        Ok(Some((
-            unsafe { str::from_utf8_unchecked(&self.data[ik]) },
-            v,
-        )))
+        Ok(Some((str_from_utf8(&self.data[ik]), v)))
     }
 
     /// Parses the data as dictionary and returns the next key and
@@ -389,10 +383,7 @@ impl Parser<'_> {
         let ik = self.parse_key()?;
         let v = self.parse_dict_value()?;
 
-        Ok(Some((
-            unsafe { str::from_utf8_unchecked(&self.data[ik]) },
-            v,
-        )))
+        Ok(Some((str_from_utf8(&self.data[ik]), v)))
     }
 
     /// Parses the data as list and returns the next item.  If there
@@ -616,6 +607,15 @@ impl Parser<'_> {
 
         Ok(Some(v))
     }
+}
+
+#[inline]
+const fn str_from_utf8(v: &[u8]) -> &str {
+    // SAFETY: All current callers pass bytes produced by `parse_key`,
+    // which only accepts ASCII characters (and therefore always valid
+    // UTF-8).
+    debug_assert!(str::from_utf8(v).is_ok());
+    unsafe { str::from_utf8_unchecked(v) }
 }
 
 impl Parser<'_> {
