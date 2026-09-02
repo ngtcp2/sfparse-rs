@@ -1,12 +1,21 @@
 # sfparse-rs
 
-sfparse-rs is [RFC
-9651](https://datatracker.ietf.org/doc/html/rfc9651) Structured Field
-Values parser written in Rust.  It is the port of
-[sfparse](https://github.com/ngtcp2/sfparse) written in C.
+A `#![no_std]`, high-performance parser for HTTP Structured Field
+Values ([RFC 8941](https://datatracker.ietf.org/doc/html/rfc8941) /
+[RFC 9651](https://datatracker.ietf.org/doc/html/rfc9651)).
 
-It is designed not to do any extra allocation, like allocating maps,
-lists, and Strings, and do the minimal stuff to parse the input data.
+Designed for zero-copy and zero-allocation operation, `sfparse-rs`
+parses input data in-place without allocating dynamic data structures
+(such as maps, lists, or strings).  It provides minimal,
+stream-oriented parsing primitives suitable for memory-constrained
+environments and high-throughput network applications.
+
+It is the port of [sfparse](https://github.com/ngtcp2/sfparse) written
+in C.
+
+This is an example of parsing [RFC
+9218](https://datatracker.ietf.org/doc/html/rfc9218) Priority header
+field:
 
 ```rust
 use sfparse::{Parser, Value};
