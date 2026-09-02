@@ -8,6 +8,12 @@ keywords = ["RFC9651", "RFC8941", "HTTP", "structured-fields", "structured-heade
 documentation = "https://docs.rs/sfparse"
 repository = "https://github.com/ngtcp2/sfparse-rs"
 rust-version = "1.86.0"
+exclude = [
+  ".github/**/*",
+  ".gitignore",
+  "Cargo.lock",
+  "benches/**/*",
+]
 
 [dependencies]
 
